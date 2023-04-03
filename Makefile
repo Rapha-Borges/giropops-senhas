@@ -23,7 +23,7 @@ else ifeq ($(OS),Darwin)
   COLIMA_COMMAND = brew install colima
   SED_COMMAND = brew install gnu-sed
 else
-  $(error Unsupported operating system: $(OS))
+  $(error Sistema operacional não suportado: $(OS))
 endif
 
 # Instalação do Docker
@@ -31,16 +31,6 @@ endif
 docker:
 	@echo "Instalando o Docker..."
 	@command -v docker >/dev/null 2>&1 || $(DOCKER_COMMAND)
-ifeq ($(OS),Darwin)
-	@echo "Instalando o Colima..."
-	@command -v colima >/dev/null 2>&1 || $(COLIMA_COMMAND)
-	@echo "Aguardando Colima estar disponível..."
-	@while ! command -v colima >/dev/null 2>&1; do \
-		sleep 1; \
-	done
-	colima start
-	@echo "Colima iniciado com sucesso!"
-endif
 	@echo "Docker instalado com sucesso!"
 
 # Instalação do Kind
@@ -48,8 +38,13 @@ endif
 kind:
 	@echo "Instalando o Kind..."
 	@command -v kind >/dev/null 2>&1 || $(KIND_COMMAND)
-	@if [ -z "$$(kind get clusters | grep kind-linuxtips)" ]; then kind create cluster --name kind-linuxtips --config kind-config/kind-cluster-3-nodes.yaml; fi
+	@while ! command -v kind >/dev/null 2>&1; do \
+		sleep 1; \
+	done
 	@echo "Kind instalado com sucesso!"
+	@echo "Criando o cluster..."
+	@if [ -z "$$(kind get clusters | grep kind-linuxtips)" ]; then kind create cluster --name kind-linuxtips --config kind-config/kind-cluster-3-nodes.yaml; fi
+	@echo "Cluster criado com sucesso!"
 
 # Instalação do kubectl
 .PHONY: kubectl
@@ -62,7 +57,6 @@ kubectl:
 .PHONY: argo_login
 argo_login:
 	$(eval SENHA := $(shell kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d))
-	@echo "Senha do ArgoCD: ${SENHA}"
 	@nohup kubectl port-forward svc/argocd-server -n argocd --address 0.0.0.0 8080:443 &
 	@sleep 2
 	@argocd login localhost:8080 --insecure --username admin --password $(SENHA)
@@ -106,7 +100,7 @@ argocd:
 	rm argocd-$(OS)-amd64
 	while true; do \
 		kubectl wait --for=condition=ready --timeout=10m pod -l app.kubernetes.io/name=argocd-server -n argocd && break; \
-	    sleep 3; \
+	    sleep 10; \
 	done
 	$(MAKE) argo_login
 	$(MAKE) add_cluster
@@ -143,11 +137,11 @@ kube-prometheus:
 	@echo "Instalando o Kube-Prometheus..."
 	git clone https://github.com/prometheus-operator/kube-prometheus || true
 	cd kube-prometheus
-	kubectl create -f kube-prometheus/manifests/setup --request-timeout=100m
+	kubectl create -f kube-prometheus/manifests/setup --request-timeout=10m
 	sleep 5
-	kubectl create -f kube-prometheus/manifests/ --request-timeout=100m
+	kubectl create -f kube-prometheus/manifests/ --request-timeout=10m
 	sleep 5
-	kubectl wait --for=condition=ready --timeout=300s pod -l app.kubernetes.io/part-of=kube-prometheus -n monitoring
+	kubectl wait --for=condition=ready --timeout=10m pod -l app.kubernetes.io/part-of=kube-prometheus -n monitoring
 	kubectl apply -f prometheus-config/
 	rm -rf kube-prometheus
 	kubectl label namespace monitoring istio-injection=enabled
@@ -169,11 +163,8 @@ metallb:
 .PHONY: istio
 istio:
 	@echo "Instalando o Istio..."
-	curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} sh -
-	cd istio-${ISTIO_VERSION}
-	export PATH=$$PWD/bin:$$PATH
-	bash -c "source ~/.bashrc"
-	istioctl install --set profile=default -y
+	curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} TARGET_ARCH=x86_64 sh -
+	cd istio-${ISTIO_VERSION} && export PATH=$$PWD/bin:$$PATH && istioctl install --set profile=default -y
 	kubectl label namespace default istio-injection=enabled
 	kubectl wait --for=condition=ready --timeout=300s pod -l app=istiod -n istio-system
 	rm -rf istio-${ISTIO_VERSION}
@@ -197,7 +188,13 @@ kiali:
 clean:
 	@echo "Desinstalando o Istio..."
 	istioctl x uninstall --purge || true
+	rm -rf istio-${ISTIO_VERSION}
 	@echo "Istio desinstalado com sucesso!"
+	@echo "Desinstalando o ArgoCD..."
+	rm -f argocd-$(OS)-amd64
+	sudo rm /usr/local/bin/argocd
+	sudo rm -rf /etc/argocd /var/lib/argocd
+	@echo "ArgoCD removido com sucesso!"
 	@echo "Removendo o cluster do Kind..."
 	kind delete cluster --name kind-linuxtips || true
 	@echo "Cluster removido com sucesso!"
