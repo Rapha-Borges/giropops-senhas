@@ -14,8 +14,8 @@ all: docker kind kubectl metallb kube-prometheus istio kiali argocd giropops-sen
 
 ifeq ($(OS),Linux)
   DOCKER_COMMAND = sudo curl -fsSL https://get.docker.com | bash
-  KIND_COMMAND = curl -Lo ./kind "https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind
-  KUBECTL_COMMAND = curl -LO https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl && chmod +x ./kubectl && sudo mv ./kubectl /usr/local/bin/
+  KIND_COMMAND = "curl -Lo ./kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind"
+  KUBECTL_COMMAND = "curl -LO https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl && chmod +x ./kubectl && sudo mv ./kubectl /usr/local/bin/"
 else ifeq ($(OS),Darwin)
   DOCKER_COMMAND = brew install docker
   KIND_COMMAND = brew install kind
