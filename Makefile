@@ -164,7 +164,7 @@ metallb:
 istio:
 	@echo "Instalando o Istio..."
 	curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} TARGET_ARCH=x86_64 sh -
-	cd istio-${ISTIO_VERSION} && export PATH=$$PWD/bin:$$PATH && istioctl install --set profile=default -y
+	cd istio-${ISTIO_VERSION} && export PATH=$$PWD/bin:$$PATH && istioctl install --set profile=default -y 
 	kubectl label namespace default istio-injection=enabled
 	kubectl wait --for=condition=ready --timeout=300s pod -l app=istiod -n istio-system
 	rm -rf istio-${ISTIO_VERSION}
@@ -188,12 +188,12 @@ kiali:
 clean:
 	@echo "Desinstalando o Istio..."
 	istioctl x uninstall --purge || true
-	rm -rf istio-${ISTIO_VERSION}
+	rm -rf istio-${ISTIO_VERSION} || true
 	@echo "Istio desinstalado com sucesso!"
 	@echo "Desinstalando o ArgoCD..."
-	rm -f argocd-$(OS)-amd64
-	sudo rm /usr/local/bin/argocd
-	sudo rm -rf /etc/argocd /var/lib/argocd
+	rm -f argocd-$(OS)-amd64 || true
+	sudo rm /usr/local/bin/argocd || true
+	sudo rm -rf /etc/argocd /var/lib/argocd || true
 	@echo "ArgoCD removido com sucesso!"
 	@echo "Removendo o cluster do Kind..."
 	kind delete cluster --name kind-linuxtips || true
