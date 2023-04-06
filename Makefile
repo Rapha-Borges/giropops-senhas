@@ -10,7 +10,9 @@ OS = $(shell uname -s)
 
 # Tarefas principais
 .PHONY: all
-all: docker kind kubectl metallb kube-prometheus istio kiali argocd giropops-senhas giropops-locust 
+all: docker kind kubectl metallb kube-prometheus istio kiali argocd giropops-senhas giropops-locust chaos-mesh
+
+OS := $(shell uname -s)
 
 ifeq ($(OS),Linux)
   DOCKER_COMMAND = sudo curl -fsSL https://get.docker.com | bash
@@ -182,6 +184,14 @@ kiali:
 	kubectl apply -f istio-config/
 	kubectl rollout restart deployment kiali -n istio-system
 	@echo "Kiali foi instalado com sucesso!"
+	
+# Instalando o Chaos Mesh
+.PHONY: chaos-mesh
+chaos-mesh:
+	@echo "Instalando o Chaos Mesh Operator"
+	curl -fsSL https://mirrors.chaos-mesh.org/v2.5.1/install.sh | bash -s -- --local kind --name kind-linuxtips
+	sleep 3
+	@echo "Chaos Mesh instalado com sucesso!"
 
 # Removendo o Kind e limpando tudo que foi instalado
 .PHONY: clean
